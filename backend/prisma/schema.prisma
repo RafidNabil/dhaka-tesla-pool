@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  PASSENGER
+  DRIVER
+}
+
+enum PoolStatus {
+  MATCHING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PoolingPreference {
+  WAIT
+  IMMEDIATE
+}
+
+enum RideRequestStatus {
+  REQUESTED
+  MATCHED
+  STARTED
+  COMPLETED
+  CANCELLED
+}
+
+enum PoolOfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum PaymentMethod {
+  CASH
+  TESLAPAY
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  role         UserRole
+  passwordHash String   @map("password_hash")
+
+  rideRequests RideRequest[]
+  vehicle      Vehicle?
+  poolOffers   PoolOffer[]
+
+  @@map("users")
+}
+
+model Vehicle {
+  id       String  @id @default(uuid()) @db.Uuid
+  driverId String  @unique @map("driver_id") @db.Uuid
+  capacity Int
+  online   Boolean @default(false)
+
+  driver User   @relation(fields: [driverId], references: [id])
+  pools  Pool[]
+
+  @@map("vehicles")
+}
+
+model Pool {
+  id              String     @id @default(uuid()) @db.Uuid
+  vehicleId       String?    @map("vehicle_id") @db.Uuid
+  status          PoolStatus @default(MATCHING)
+  seatsOccupied   Int        @default(0) @map("seats_occupied")
+  driverArrivedAt DateTime?  @map("driver_arrived_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  vehicle      Vehicle?      @relation(fields: [vehicleId], references: [id])
+  rideRequests RideRequest[]
+  offers       PoolOffer[]
+
+  @@map("pools")
+}
+
+model Location {
+  id        String  @id @default(uuid()) @db.Uuid
+  name      String  @unique
+  latitude  Decimal @db.Decimal(9, 6)
+  longitude Decimal @db.Decimal(9, 6)
+
+  pickupRequests      RideRequest[] @relation("PickupLocation")
+  destinationRequests RideRequest[] @relation("DestinationLocation")
+
+  @@map("locations")
+}
+
+model RideRequest {
+  id                    String            @id @default(uuid()) @db.Uuid
+  passengerId           String            @map("passenger_id") @db.Uuid
+  poolId                String?           @map("pool_id") @db.Uuid
+  pickupLocationId      String            @map("pickup_location_id") @db.Uuid
+  destinationLocationId String            @map("destination_location_id") @db.Uuid
+  seatsRequested        Int               @map("seats_requested")
+  poolingPreference     PoolingPreference @map("pooling_preference")
+  status                RideRequestStatus @default(REQUESTED)
+  requestedAt           DateTime          @default(now()) @map("requested_at")
+
+  passenger           User     @relation(fields: [passengerId], references: [id])
+  pool                Pool?    @relation(fields: [poolId], references: [id])
+  pickupLocation      Location @relation("PickupLocation", fields: [pickupLocationId], references: [id])
+  destinationLocation Location @relation("DestinationLocation", fields: [destinationLocationId], references: [id])
+  fare                Fare?
+
+  @@index([passengerId])
+  @@index([poolId])
+  @@index([pickupLocationId])
+  @@index([destinationLocationId])
+  @@index([status])
+  @@map("ride_requests")
+}
+
+model PoolOffer {
+  id          String          @id @default(uuid()) @db.Uuid
+  poolId      String          @map("pool_id") @db.Uuid
+  driverId    String          @map("driver_id") @db.Uuid
+  status      PoolOfferStatus @default(PENDING)
+  offeredAt   DateTime        @default(now()) @map("offered_at")
+  respondedAt DateTime?       @map("responded_at")
+
+  pool   Pool @relation(fields: [poolId], references: [id])
+  driver User @relation(fields: [driverId], references: [id])
+
+  @@unique([poolId, driverId])
+  @@index([driverId])
+  @@index([status])
+  @@map("pool_offers")
+}
+
+model Fare {
+  id             String        @id @default(uuid()) @db.Uuid
+  rideRequestId  String        @unique @map("ride_request_id") @db.Uuid
+  baseFare       Int           @map("base_fare")
+  distanceCharge Int           @map("distance_charge")
+  poolDiscount   Int           @map("pool_discount")
+  total          Int
+  paymentMethod  PaymentMethod @map("payment_method")
+
+  rideRequest RideRequest @relation(fields: [rideRequestId], references: [id])
+
+  @@map("fares")
+}
