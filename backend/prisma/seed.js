@@ -1,4 +1,5 @@
 import { prisma } from "../src/config/prisma.js";
+import { hashPassword } from "../src/utils/password.js";
 
 const locations = [
   {
@@ -68,6 +69,46 @@ const seed = async () => {
   }
 
   console.log(`Seeded ${locations.length} locations.`);
+
+  const driverPasswordHash = await hashPassword("Password123");
+
+  const driver = await prisma.user.upsert({
+    where: {
+      email: "jashim@test.com",
+    },
+    update: {
+      name: "Jashim",
+      role: "DRIVER",
+      passwordHash: driverPasswordHash,
+    },
+    create: {
+      name: "Jashim",
+      email: "jashim@test.com",
+      role: "DRIVER",
+      passwordHash: driverPasswordHash,
+    },
+  });
+
+  await prisma.vehicle.upsert({
+    where: {
+      driverId: driver.id,
+    },
+    update: {
+      capacity: 3,
+      online: true,
+    },
+    create: {
+      driverId: driver.id,
+      capacity: 3,
+      online: true,
+    },
+  });
+
+  console.log("Seeded driver: Jashim.");
+  console.log("Email: jashim@test.com");
+  console.log("Password: Password123");
+  console.log("Vehicle capacity: 3");
+  console.log("Vehicle online: true");
 };
 
 seed()

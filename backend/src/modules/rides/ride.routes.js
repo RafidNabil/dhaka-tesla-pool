@@ -6,8 +6,10 @@ import {
 } from "./ride.controller.js";
 import { createRideSchema } from "./ride.validation.js";
 import { validate } from "../../middlewares/validate.middleware.js";
-import { authenticate } from "../../middlewares/auth.middleware.js";
-import { requireRole } from "../../middlewares/auth.middleware.js";
+import {
+  authenticate,
+  requireRole,
+} from "../../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -20,14 +22,8 @@ router.post(
   createRide
 );
 
-router.get(
-  "/:id",
-  getRideById
-);
+router.get("/:id", getRideById);
 
-router.post(
-  "/:id/cancel",
-  cancelRide
-);
+router.post("/:id/cancel", cancelRide);
 
 export default router;

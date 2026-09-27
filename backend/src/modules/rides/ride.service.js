@@ -35,38 +35,29 @@ export const createRide = async ({
     throw new AppError("Destination location not found", 404);
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const pool = await tx.pool.create({
-      data: {
-        status: "MATCHING",
-        seatsOccupied: seatsRequested,
-      },
-    });
-
-    const rideRequest = await tx.rideRequest.create({
-      data: {
-        passengerId,
-        poolId: pool.id,
-        pickupLocationId,
-        destinationLocationId,
-        seatsRequested,
-        poolingPreference,
-        status: "REQUESTED",
-      },
-      include: {
-        pickupLocation: true,
-        destinationLocation: true,
-        pool: true,
-      },
-    });
-
-    return rideRequest;
+  const rideRequest = await prisma.rideRequest.create({
+    data: {
+      passengerId,
+      pickupLocationId,
+      destinationLocationId,
+      seatsRequested,
+      poolingPreference,
+      status: "REQUESTED",
+      poolId: null,
+    },
+    include: {
+      pickupLocation: true,
+      destinationLocation: true,
+    },
   });
 
-  return result;
+  return rideRequest;
 };
 
-export const getRideById = async ({ rideId, passengerId }) => {
+export const getRideById = async ({
+  rideId,
+  passengerId,
+}) => {
   const ride = await prisma.rideRequest.findUnique({
     where: {
       id: rideId,
@@ -84,7 +75,7 @@ export const getRideById = async ({ rideId, passengerId }) => {
   });
 
   if (!ride) {
-    throw new AppError("Ride Request not found", 404);
+    throw new AppError("Ride not found", 404);
   }
 
   if (ride.passengerId !== passengerId) {
@@ -97,7 +88,10 @@ export const getRideById = async ({ rideId, passengerId }) => {
   return ride;
 };
 
-export const cancelRide = async ({ rideId, passengerId }) => {
+export const cancelRide = async ({
+  rideId,
+  passengerId,
+}) => {
   const ride = await prisma.rideRequest.findUnique({
     where: {
       id: rideId,
@@ -105,7 +99,7 @@ export const cancelRide = async ({ rideId, passengerId }) => {
   });
 
   if (!ride) {
-    throw new AppError("Ride Request not found", 404);
+    throw new AppError("Ride not found", 404);
   }
 
   if (ride.passengerId !== passengerId) {
@@ -125,7 +119,7 @@ export const cancelRide = async ({ rideId, passengerId }) => {
     );
   }
 
-  return prisma.rideRequest.update({
+  const cancelledRide = await prisma.rideRequest.update({
     where: {
       id: rideId,
     },
@@ -138,4 +132,6 @@ export const cancelRide = async ({ rideId, passengerId }) => {
       pool: true,
     },
   });
+
+  return cancelledRide;
 };

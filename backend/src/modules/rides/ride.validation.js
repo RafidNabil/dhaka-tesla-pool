@@ -3,7 +3,9 @@ import { z } from "zod";
 export const createRideSchema = z.object({
   pickupLocationId: z.string().uuid("Invalid pickup location ID"),
 
-  destinationLocationId: z.string().uuid("Invalid destination location ID"),
+  destinationLocationId: z
+    .string()
+    .uuid("Invalid destination location ID"),
 
   seatsRequested: z
     .number()
