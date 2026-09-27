@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.js";
 import { findCompatiblePool } from "../../modules/pools/pool.matching.js";
+import { emitToPool } from "../../services/websocket.service.js";
 
 const findAvailableDrivers = async (tx) => {
   return tx.user.findMany({
@@ -178,6 +179,11 @@ const confirmReadyPools = async () => {
       });
 
       if (updatedPool.count === 1) {
+        emitToPool(pool.id, "pool:statusChanged", {
+          poolId: pool.id,
+          status: "CONFIRMED",
+        });
+
         confirmedPools.push({
           poolId: pool.id,
           immediateSeats: readiness.immediateSeats,
