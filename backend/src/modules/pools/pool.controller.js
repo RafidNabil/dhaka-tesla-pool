@@ -25,3 +25,20 @@ export const getMatchingPools = async (req, res, next) => {
     next(error);
   }
 };
+
+export const startPool = async (req, res, next) => {
+  try {
+    const pool = await poolService.startPool({
+      poolId: req.params.id,
+      driverId: req.user.id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Pool started successfully",
+      pool,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
