@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import routes from "./routes/index.js";
+import { errorHandler } from "./middlewares/error.middleware.js";
 
 const app = express();
 
@@ -20,6 +22,10 @@ app.get("/api/health", (req, res) => {
     status: "ok",
   });
 });
+
+app.use("/api", routes);
+
+app.use(errorHandler);
 
 export default app;
 
