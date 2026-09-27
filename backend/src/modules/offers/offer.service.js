@@ -82,9 +82,6 @@ export const acceptOffer = async ({
       where: {
         id: offerId,
       },
-      include: {
-        pool: true,
-      },
     });
 
     if (!offer) {
@@ -98,6 +95,33 @@ export const acceptOffer = async ({
       );
     }
 
+    const lockedPools = await tx.$queryRaw`
+      SELECT id, vehicle_id, status
+      FROM pools
+      WHERE id = ${offer.poolId}::uuid
+      FOR UPDATE
+    `;
+
+    const pool = lockedPools[0];
+
+    if (!pool) {
+      throw new AppError("Pool not found", 404);
+    }
+
+    if (pool.status !== "MATCHING") {
+      throw new AppError(
+        "This pool is no longer available",
+        400
+      );
+    }
+
+    if (pool.vehicle_id) {
+      throw new AppError(
+        "This pool already has a driver",
+        400
+      );
+    }
+
     if (offer.status !== "PENDING") {
       throw new AppError(
         "This offer is no longer pending",
@@ -108,6 +132,10 @@ export const acceptOffer = async ({
     const vehicle = await tx.vehicle.findUnique({
       where: {
         driverId,
+      },
+      select: {
+        id: true,
+        online: true,
       },
     });
 
@@ -125,16 +153,10 @@ export const acceptOffer = async ({
       );
     }
 
-    if (offer.pool.status !== "MATCHING") {
-      throw new AppError(
-        "This pool is no longer available",
-        400
-      );
-    }
-
-    const acceptedOffer = await tx.poolOffer.update({
+    const acceptedOffer = await tx.poolOffer.updateMany({
       where: {
         id: offerId,
+        status: "PENDING",
       },
       data: {
         status: "ACCEPTED",
@@ -142,13 +164,33 @@ export const acceptOffer = async ({
       },
     });
 
+    if (acceptedOffer.count !== 1) {
+      throw new AppError(
+        "This offer is no longer pending",
+        400
+      );
+    }
+
     await tx.pool.update({
       where: {
         id: offer.poolId,
       },
       data: {
         vehicleId: vehicle.id,
-        status: "CONFIRMED",
+      },
+    });
+
+    await tx.poolOffer.updateMany({
+      where: {
+        poolId: offer.poolId,
+        status: "PENDING",
+        id: {
+          not: offerId,
+        },
+      },
+      data: {
+        status: "REJECTED",
+        respondedAt: new Date(),
       },
     });
 
@@ -162,9 +204,14 @@ export const acceptOffer = async ({
       },
     });
 
-    return acceptedOffer;
+    return tx.poolOffer.findUnique({
+      where: {
+        id: offerId,
+      },
+    });
   });
 };
+
 
 export const rejectOffer = async ({
   offerId,

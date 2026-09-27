@@ -1,8 +1,11 @@
 import { Router } from "express";
+
 import {
   getPoolById,
   getMatchingPools,
+  startPool,
 } from "./pool.controller.js";
+
 import {
   authenticate,
   requireRole,
@@ -19,5 +22,11 @@ router.get(
 );
 
 router.get("/:id", getPoolById);
+
+router.post(
+  "/:id/start",
+  requireRole("DRIVER"),
+  startPool
+);
 
 export default router;
