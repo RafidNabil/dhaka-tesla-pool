@@ -66,3 +66,23 @@ export const cancelRide = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getPassengerRideHistory = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const rides =
+      await rideService.getPassengerRideHistory(
+        req.user.id
+      );
+
+    res.status(200).json({
+      success: true,
+      rides,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

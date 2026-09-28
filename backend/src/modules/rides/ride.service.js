@@ -189,3 +189,27 @@ export const cancelRide = async ({
 
   return cancelledRide;
 };
+
+export const getPassengerRideHistory = async (passengerId) => {
+  return prisma.rideRequest.findMany({
+    where: {
+      passengerId,
+      status: {
+        in: ["COMPLETED", "CANCELLED"],
+      },
+    },
+    include: {
+      pickupLocation: true,
+      destinationLocation: true,
+      pool: {
+        include: {
+          vehicle: true,
+        },
+      },
+      fare: true,
+    },
+    orderBy: {
+      requestedAt: "desc",
+    },
+  });
+};
