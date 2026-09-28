@@ -86,3 +86,16 @@ export const getPassengerRideHistory = async (
     next(error);
   }
 };
+
+export const getActiveRide = async (req, res, next) => {
+  try {
+    const ride = await rideService.getActiveRide(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      ride,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
