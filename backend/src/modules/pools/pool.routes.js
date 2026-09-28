@@ -5,7 +5,8 @@ import {
   getMatchingPools,
   arriveAtPool,
   startPool,
-  completePool
+  completePool,
+  getDriverPoolHistory
 } from "./pool.controller.js";
 
 import {
@@ -16,6 +17,12 @@ import {
 const router = Router();
 
 router.use(authenticate);
+
+router.get(
+  "/history",
+  requireRole("DRIVER"),
+  getDriverPoolHistory
+);
 
 router.get(
   "/matching",
