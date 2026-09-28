@@ -1,6 +1,8 @@
 import { prisma } from "../../config/prisma.js";
 import { emitToPool } from "../../services/websocket.service.js";
 import { AppError } from "../../utils/errors.js";
+import { calculateDistanceKm } from "../../services/distance.service.js";
+import { calculatePoolFares } from "../fares/fare.service.js";
 
 export const getPoolById = async (poolId) => {
   const pool = await prisma.pool.findUnique({
@@ -326,4 +328,82 @@ export const getDriverPoolHistory = async (driverId) => {
       createdAt: "desc",
     },
   });
+};
+
+export const calculateAndSavePoolFares = async ({
+  tx,
+  poolId,
+}) => {
+  const rides = await tx.rideRequest.findMany({
+    where: {
+      poolId,
+      status: "MATCHED",
+    },
+    include: {
+      pickupLocation: true,
+      destinationLocation: true,
+    },
+    orderBy: {
+      requestedAt: "asc",
+    },
+  });
+
+  if (rides.length < 1 || rides.length > 3) {
+    throw new AppError(
+      "A pool must contain between 1 and 3 active passengers",
+      400
+    );
+  }
+
+  const passengers = rides.map((ride) => {
+    const distanceKm = calculateDistanceKm(
+      ride.pickupLocation.latitude,
+      ride.pickupLocation.longitude,
+      ride.destinationLocation.latitude,
+      ride.destinationLocation.longitude
+    );
+
+    return {
+      passengerId: ride.passengerId,
+      distanceKm,
+    };
+  });
+
+  const fareResult = calculatePoolFares(passengers);
+
+  for (const fare of fareResult.fares) {
+    const ride = rides.find(
+      (ride) => ride.passengerId === fare.passengerId
+    );
+
+    if (!ride) {
+      throw new AppError(
+        "Could not find ride for passenger fare",
+        500
+      );
+    }
+
+    await tx.fare.upsert({
+      where: {
+        rideRequestId: ride.id,
+      },
+      update: {
+        baseFare: 0,
+        distanceCharge: fare.fare,
+        poolDiscount: 0,
+        total: fare.fare,
+        paymentMethod: "CASH",
+      },
+      create: {
+        rideRequestId: ride.id,
+        baseFare: 0,
+        distanceCharge: fare.fare,
+        poolDiscount: 0,
+        total: fare.fare,
+        paymentMethod: "CASH",
+      },
+    });
+  }
+
+  return fareResult;
 };

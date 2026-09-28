@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma.js";
 import { findCompatiblePool } from "../../modules/pools/pool.matching.js";
 import { emitToPool } from "../../services/websocket.service.js";
+import { calculateAndSavePoolFares } from "../../modules/pools/pool.service.js";
 
 const findAvailableDrivers = async (tx) => {
   return tx.user.findMany({
@@ -144,9 +145,7 @@ const confirmReadyPools = async () => {
     const pools = await tx.pool.findMany({
       where: {
         status: "MATCHING",
-        vehicleId: {
-          not: null,
-        },
+        vehicleId: { not: null },
       },
       select: {
         id: true,
@@ -165,13 +164,21 @@ const confirmReadyPools = async () => {
         continue;
       }
 
+      /*
+       * Calculate and save passenger fares before
+       * allowing the pool to become CONFIRMED.
+       */
+      const fareResult =
+        await calculateAndSavePoolFares({
+          tx,
+          poolId: pool.id,
+        });
+
       const updatedPool = await tx.pool.updateMany({
         where: {
           id: pool.id,
           status: "MATCHING",
-          vehicleId: {
-            not: null,
-          },
+          vehicleId: { not: null },
         },
         data: {
           status: "CONFIRMED",
@@ -179,15 +186,12 @@ const confirmReadyPools = async () => {
       });
 
       if (updatedPool.count === 1) {
-        emitToPool(pool.id, "pool:statusChanged", {
-          poolId: pool.id,
-          status: "CONFIRMED",
-        });
-
         confirmedPools.push({
           poolId: pool.id,
           immediateSeats: readiness.immediateSeats,
           waitSeats: readiness.waitSeats,
+          totalFare: fareResult.totalFare,
+          fares: fareResult.fares,
         });
       }
     }
