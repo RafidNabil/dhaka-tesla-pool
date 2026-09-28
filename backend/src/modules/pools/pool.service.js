@@ -56,10 +56,20 @@ export const getPoolById = async (poolId) => {
   return pool;
 };
 
-export const getMatchingPools = async () => {
+export const getMatchingPools = async (driverId) => {
   return prisma.pool.findMany({
     where: {
-      status: "MATCHING",
+      OR: [
+        { status: "MATCHING" },
+        {
+          status: "CONFIRMED",
+          vehicle: {
+            is: {
+              driverId,
+            },
+          },
+        },
+      ],
     },
     include: {
       rideRequests: {

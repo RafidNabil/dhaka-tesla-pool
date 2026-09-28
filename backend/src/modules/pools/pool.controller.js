@@ -15,7 +15,7 @@ export const getPoolById = async (req, res, next) => {
 
 export const getMatchingPools = async (req, res, next) => {
   try {
-    const pools = await poolService.getMatchingPools();
+    const pools = await poolService.getMatchingPools(req.user.id);
 
     res.status(200).json({
       success: true,
