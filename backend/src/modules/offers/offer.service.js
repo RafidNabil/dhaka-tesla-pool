@@ -77,139 +77,145 @@ export const acceptOffer = async ({
   offerId,
   driverId,
 }) => {
-  return prisma.$transaction(async (tx) => {
-    const offer = await tx.poolOffer.findUnique({
-      where: {
-        id: offerId,
-      },
-    });
-
-    if (!offer) {
-      throw new AppError("Pool offer not found", 404);
-    }
-
-    if (offer.driverId !== driverId) {
-      throw new AppError(
-        "You are not authorized to accept this offer",
-        403
-      );
-    }
-
-    const lockedPools = await tx.$queryRaw`
-      SELECT id, vehicle_id, status
-      FROM pools
-      WHERE id = ${offer.poolId}::uuid
-      FOR UPDATE
-    `;
-
-    const pool = lockedPools[0];
-
-    if (!pool) {
-      throw new AppError("Pool not found", 404);
-    }
-
-    if (pool.status !== "MATCHING") {
-      throw new AppError(
-        "This pool is no longer available",
-        400
-      );
-    }
-
-    if (pool.vehicle_id) {
-      throw new AppError(
-        "This pool already has a driver",
-        400
-      );
-    }
-
-    if (offer.status !== "PENDING") {
-      throw new AppError(
-        "This offer is no longer pending",
-        400
-      );
-    }
-
-    const vehicle = await tx.vehicle.findUnique({
-      where: {
-        driverId,
-      },
-      select: {
-        id: true,
-        online: true,
-      },
-    });
-
-    if (!vehicle) {
-      throw new AppError(
-        "Driver does not have a vehicle",
-        400
-      );
-    }
-
-    if (!vehicle.online) {
-      throw new AppError(
-        "Driver is currently offline",
-        400
-      );
-    }
-
-    const acceptedOffer = await tx.poolOffer.updateMany({
-      where: {
-        id: offerId,
-        status: "PENDING",
-      },
-      data: {
-        status: "ACCEPTED",
-        respondedAt: new Date(),
-      },
-    });
-
-    if (acceptedOffer.count !== 1) {
-      throw new AppError(
-        "This offer is no longer pending",
-        400
-      );
-    }
-
-    await tx.pool.update({
-      where: {
-        id: offer.poolId,
-      },
-      data: {
-        vehicleId: vehicle.id,
-      },
-    });
-
-    await tx.poolOffer.updateMany({
-      where: {
-        poolId: offer.poolId,
-        status: "PENDING",
-        id: {
-          not: offerId,
+  return prisma.$transaction(
+    async (tx) => {
+      const offer = await tx.poolOffer.findUnique({
+        where: {
+          id: offerId,
         },
-      },
-      data: {
-        status: "REJECTED",
-        respondedAt: new Date(),
-      },
-    });
+      });
 
-    await tx.rideRequest.updateMany({
-      where: {
-        poolId: offer.poolId,
-        status: "REQUESTED",
-      },
-      data: {
-        status: "MATCHED",
-      },
-    });
+      if (!offer) {
+        throw new AppError("Pool offer not found", 404);
+      }
 
-    return tx.poolOffer.findUnique({
-      where: {
-        id: offerId,
-      },
-    });
-  });
+      if (offer.driverId !== driverId) {
+        throw new AppError(
+          "You are not authorized to accept this offer",
+          403
+        );
+      }
+
+      const lockedPools = await tx.$queryRaw`
+        SELECT id, vehicle_id, status
+        FROM pools
+        WHERE id = ${offer.poolId}::uuid
+        FOR UPDATE
+      `;
+
+      const pool = lockedPools[0];
+
+      if (!pool) {
+        throw new AppError("Pool not found", 404);
+      }
+
+      if (pool.status !== "MATCHING") {
+        throw new AppError(
+          "This pool is no longer available",
+          400
+        );
+      }
+
+      if (pool.vehicle_id) {
+        throw new AppError(
+          "This pool already has a driver",
+          400
+        );
+      }
+
+      if (offer.status !== "PENDING") {
+        throw new AppError(
+          "This offer is no longer pending",
+          400
+        );
+      }
+
+      const vehicle = await tx.vehicle.findUnique({
+        where: {
+          driverId,
+        },
+        select: {
+          id: true,
+          online: true,
+        },
+      });
+
+      if (!vehicle) {
+        throw new AppError(
+          "Driver does not have a vehicle",
+          400
+        );
+      }
+
+      if (!vehicle.online) {
+        throw new AppError(
+          "Driver is currently offline",
+          400
+        );
+      }
+
+      const acceptedOffer = await tx.poolOffer.updateMany({
+        where: {
+          id: offerId,
+          status: "PENDING",
+        },
+        data: {
+          status: "ACCEPTED",
+          respondedAt: new Date(),
+        },
+      });
+
+      if (acceptedOffer.count !== 1) {
+        throw new AppError(
+          "This offer is no longer pending",
+          400
+        );
+      }
+
+      await tx.pool.update({
+        where: {
+          id: offer.poolId,
+        },
+        data: {
+          vehicleId: vehicle.id,
+        },
+      });
+
+      await tx.poolOffer.updateMany({
+        where: {
+          poolId: offer.poolId,
+          status: "PENDING",
+          id: {
+            not: offerId,
+          },
+        },
+        data: {
+          status: "REJECTED",
+          respondedAt: new Date(),
+        },
+      });
+
+      await tx.rideRequest.updateMany({
+        where: {
+          poolId: offer.poolId,
+          status: "REQUESTED",
+        },
+        data: {
+          status: "MATCHED",
+        },
+      });
+
+      return tx.poolOffer.findUnique({
+        where: {
+          id: offerId,
+        },
+      });
+    },
+    {
+      maxWait: 10000,
+      timeout: 10000,
+    }
+  );
 };
 
 

@@ -26,6 +26,23 @@ export const getMatchingPools = async (req, res, next) => {
   }
 };
 
+export const arriveAtPool = async (req, res, next) => {
+  try {
+    const pool = await poolService.arriveAtPool({
+      poolId: req.params.id,
+      driverId: req.user.id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Driver arrival recorded successfully",
+      pool,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const startPool = async (req, res, next) => {
   try {
     const pool = await poolService.startPool({
@@ -36,6 +53,23 @@ export const startPool = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Pool started successfully",
+      pool,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const completePool = async (req, res, next) => {
+  try {
+    const pool = await poolService.completePool({
+      poolId: req.params.id,
+      driverId: req.user.id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Pool completed successfully",
       pool,
     });
   } catch (error) {

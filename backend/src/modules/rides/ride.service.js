@@ -88,6 +88,60 @@ export const getRideById = async ({
   return ride;
 };
 
+export const updatePoolingPreference = async ({
+  rideId,
+  passengerId,
+  poolingPreference,
+}) => {
+  const ride = await prisma.rideRequest.findUnique({
+    where: {
+      id: rideId,
+    },
+  });
+
+  if (!ride) {
+    throw new AppError("Ride not found", 404);
+  }
+
+  if (ride.passengerId !== passengerId) {
+    throw new AppError(
+      "You are not authorized to update this ride",
+      403
+    );
+  }
+
+  if (
+    ride.status !== "REQUESTED" &&
+    ride.status !== "MATCHED"
+  ) {
+    throw new AppError(
+      "Pooling preference cannot be changed in the current ride state",
+      400
+    );
+  }
+
+  if (ride.poolingPreference === poolingPreference) {
+    throw new AppError(
+      "Pooling preference is already set to this value",
+      400
+    );
+  }
+
+  return prisma.rideRequest.update({
+    where: {
+      id: rideId,
+    },
+    data: {
+      poolingPreference,
+    },
+    include: {
+      pickupLocation: true,
+      destinationLocation: true,
+      pool: true,
+    },
+  });
+};
+
 export const cancelRide = async ({
   rideId,
   passengerId,

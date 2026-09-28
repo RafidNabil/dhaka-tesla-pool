@@ -3,8 +3,9 @@ import {
   createRide,
   getRideById,
   cancelRide,
+  updatePoolingPreference
 } from "./ride.controller.js";
-import { createRideSchema } from "./ride.validation.js";
+import { createRideSchema, updatePoolingPreferenceSchema } from "./ride.validation.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 import {
   authenticate,
@@ -23,6 +24,13 @@ router.post(
 );
 
 router.get("/:id", getRideById);
+
+router.patch(
+  "/:id/pooling-preference",
+  requireRole("PASSENGER"),
+  validate(updatePoolingPreferenceSchema),
+  updatePoolingPreference
+);
 
 router.post("/:id/cancel", cancelRide);
 
