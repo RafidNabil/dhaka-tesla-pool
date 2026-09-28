@@ -3,7 +3,8 @@ import {
   createRide,
   getRideById,
   cancelRide,
-  updatePoolingPreference
+  updatePoolingPreference,
+  getPassengerRideHistory
 } from "./ride.controller.js";
 import { createRideSchema, updatePoolingPreferenceSchema } from "./ride.validation.js";
 import { validate } from "../../middlewares/validate.middleware.js";
@@ -15,6 +16,12 @@ import {
 const router = Router();
 
 router.use(authenticate);
+
+router.get(
+  "/history",
+  requireRole("PASSENGER"),
+  getPassengerRideHistory
+);
 
 router.post(
   "/",

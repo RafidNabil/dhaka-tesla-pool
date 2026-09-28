@@ -76,3 +76,23 @@ export const completePool = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getDriverPoolHistory = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const pools =
+      await poolService.getDriverPoolHistory(
+        req.user.id
+      );
+
+    res.status(200).json({
+      success: true,
+      pools,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

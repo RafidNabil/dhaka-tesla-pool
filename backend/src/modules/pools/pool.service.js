@@ -283,3 +283,47 @@ export const arriveAtPool = async ({
 
   return pool;
 };
+
+export const getDriverPoolHistory = async (driverId) => {
+  const vehicle = await prisma.vehicle.findUnique({
+    where: {
+      driverId,
+    },
+  });
+
+  if (!vehicle) {
+    throw new AppError(
+      "Driver does not have a vehicle",
+      400
+    );
+  }
+
+  return prisma.pool.findMany({
+    where: {
+      vehicleId: vehicle.id,
+      status: {
+        in: ["COMPLETED", "CANCELLED"],
+      },
+    },
+    include: {
+      vehicle: true,
+      rideRequests: {
+        include: {
+          passenger: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          pickupLocation: true,
+          destinationLocation: true,
+          fare: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+};
