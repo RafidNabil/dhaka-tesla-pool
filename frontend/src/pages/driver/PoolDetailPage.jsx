@@ -21,6 +21,7 @@ import {
   Flag,
   Users,
   XCircle,
+  Clock,
 } from "lucide-react";
 
 function ActionButton({ label, icon: Icon, onClick, disabled, variant = "primary" }) {
@@ -66,11 +67,10 @@ export default function PoolDetailPage() {
       ) {
         return false;
       }
-      return 3000; // Poll frequently to promptly detect passenger cancellation
+      return 3000;
     },
   });
 
-  // Socket.IO live updates
   useEffect(() => {
     connectSocket();
     const socket = getSocket();
@@ -84,6 +84,7 @@ export default function PoolDetailPage() {
     socket.on("pool:driverArrived", handler);
     socket.on("ride:statusChanged", handler);
     socket.on("ride:cancelled", handler);
+    socket.on("ride:preferenceUpdated", handler);
 
     return () => {
       leavePoolRoom(id);
@@ -91,6 +92,7 @@ export default function PoolDetailPage() {
       socket.off("pool:driverArrived", handler);
       socket.off("ride:statusChanged", handler);
       socket.off("ride:cancelled", handler);
+      socket.off("ride:preferenceUpdated", handler);
     };
   }, [id, queryClient]);
 
@@ -125,11 +127,23 @@ export default function PoolDetailPage() {
 
   const rides = pool.rideRequests ?? [];
   const activeRides = rides.filter((r) => r.status !== "CANCELLED");
-  // Pool is cancelled if status is explicitly CANCELLED or all rides were cancelled by passengers
   const isCancelled =
     pool.status === "CANCELLED" || (rides.length > 0 && activeRides.length === 0);
   const isCompleted = pool.status === "COMPLETED";
   const effectiveStatus = isCancelled ? "CANCELLED" : pool.status;
+
+  const immediateSeats = activeRides.reduce(
+    (sum, r) => sum + (r.poolingPreference === "IMMEDIATE" ? (r.seatsRequested || 1) : 0),
+    0
+  );
+  const waitSeats = activeRides.reduce(
+    (sum, r) => sum + (r.poolingPreference === "WAIT" ? (r.seatsRequested || 1) : 0),
+    0
+  );
+  const totalActiveSeats = immediateSeats + waitSeats;
+  const isPoolReady =
+    pool.status === "CONFIRMED" ||
+    (totalActiveSeats > 0 && immediateSeats > waitSeats);
 
   const driver = pool.vehicle?.driver;
   const hasArrived = !!pool.driverArrivedAt;
@@ -238,6 +252,20 @@ export default function PoolDetailPage() {
                           <span className="font-semibold text-gray-600">৳{ride.fare.total}</span>
                         </>
                       )}
+                      {ride.poolingPreference && (
+                        <>
+                          <span>·</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                              ride.poolingPreference === "IMMEDIATE"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {ride.poolingPreference === "IMMEDIATE" ? "⚡ Immediate" : "⏳ Wait"}
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div className="mt-1">
                       <StatusBadge status={ride.status} />
@@ -251,8 +279,21 @@ export default function PoolDetailPage() {
 
         {/* Driver arrived info banner */}
         {!isCancelled && hasArrived && pool.status !== "ACTIVE" && pool.status !== "COMPLETED" && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 font-medium">
-            ✓ Driver arrived — ready to start trip
+          <div className="space-y-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 font-medium">
+              ✓ Driver arrived at pickup location
+            </div>
+            {!isPoolReady && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 text-sm text-amber-800">
+                <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Waiting for passengers to be ready</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Trip can start once a majority of seats ({immediateSeats}/{totalActiveSeats} currently ready) are set to Immediate departure.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -271,8 +312,8 @@ export default function PoolDetailPage() {
                 />
               )}
 
-            {/* Start */}
-            {hasArrived && (pool.status === "CONFIRMED" || pool.status === "MATCHING") && (
+            {/* Start Trip — only appears when driver has arrived AND pool is ready */}
+            {hasArrived && isPoolReady && (pool.status === "CONFIRMED" || pool.status === "MATCHING") && (
               <ActionButton
                 label={startMutation.isPending ? "Starting trip…" : "Start Trip"}
                 icon={Play}

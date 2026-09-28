@@ -40,7 +40,7 @@ const addRideToPool = async ({
   rideRequest,
 }) => {
   const lockedPools = await tx.$queryRaw`
-    SELECT id, seats_occupied, status
+    SELECT id, seats_occupied, status, vehicle_id
     FROM pools
     WHERE id = ${pool.id}::uuid
     FOR UPDATE
@@ -64,7 +64,7 @@ const addRideToPool = async ({
     return null;
   }
 
-  return tx.pool.update({
+  const updatedPool = await tx.pool.update({
     where: {
       id: pool.id,
     },
@@ -77,6 +77,20 @@ const addRideToPool = async ({
       },
     },
   });
+
+  if (lockedPool.vehicle_id) {
+    await tx.rideRequest.updateMany({
+      where: {
+        id: rideRequest.id,
+        status: "REQUESTED",
+      },
+      data: {
+        status: "MATCHED",
+      },
+    });
+  }
+
+  return updatedPool;
 };
 
 const createPoolOffers = async ({
@@ -186,6 +200,11 @@ const confirmReadyPools = async () => {
       });
 
       if (updatedPool.count === 1) {
+        emitToPool(pool.id, "pool:statusChanged", {
+          poolId: pool.id,
+          status: "CONFIRMED",
+        });
+
         confirmedPools.push({
           poolId: pool.id,
           immediateSeats: readiness.immediateSeats,
@@ -244,10 +263,12 @@ export const processRideRequest = async (rideRequestId) => {
       });
     }
 
-    const offerCount = await createPoolOffers({
-      tx,
-      poolId: pool.id,
-    });
+    const offerCount = pool.vehicleId
+      ? 0
+      : await createPoolOffers({
+          tx,
+          poolId: pool.id,
+        });
 
     return {
       rideRequestId: rideRequest.id,

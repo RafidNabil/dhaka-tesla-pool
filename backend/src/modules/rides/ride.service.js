@@ -128,7 +128,7 @@ export const updatePoolingPreference = async ({
     );
   }
 
-  return prisma.rideRequest.update({
+  const updatedRide = await prisma.rideRequest.update({
     where: {
       id: rideId,
     },
@@ -141,6 +141,15 @@ export const updatePoolingPreference = async ({
       pool: true,
     },
   });
+
+  if (updatedRide.poolId) {
+    emitToPool(updatedRide.poolId, "ride:preferenceUpdated", {
+      rideId,
+      poolingPreference,
+    });
+  }
+
+  return updatedRide;
 };
 
 export const cancelRide = async ({
