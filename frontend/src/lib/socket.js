@@ -28,10 +28,12 @@ export function disconnectSocket() {
 
 export function joinPoolRoom(poolId) {
   const s = getSocket();
+  s.emit("joinPoolRoom", poolId);
   s.emit("pool:join", poolId);
 }
 
 export function leavePoolRoom(poolId) {
   const s = getSocket();
+  s.emit("leavePoolRoom", poolId);
   s.emit("pool:leave", poolId);
 }

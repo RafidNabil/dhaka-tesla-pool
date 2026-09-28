@@ -15,6 +15,15 @@ export default function MatchingPoolsPage() {
     refetchInterval: 15000,
   });
 
+  const matchingPools =
+    data?.filter((pool) => {
+      const rides = pool.rideRequests ?? [];
+      return (
+        pool.status !== "CANCELLED" &&
+        rides.some((r) => r.status !== "CANCELLED")
+      );
+    }) ?? [];
+
   return (
     <Layout>
       <div className="max-w-2xl mx-auto space-y-5">
@@ -32,18 +41,19 @@ export default function MatchingPoolsPage() {
             onRetry={refetch}
           />
         )}
-        {!isLoading && !isError && data?.length === 0 && (
+        {!isLoading && !isError && matchingPools.length === 0 && (
           <EmptyState
             title="No matching pools"
             description="There are no pools seeking a driver right now."
           />
         )}
 
-        {data && data.length > 0 && (
+        {matchingPools.length > 0 && (
           <div className="space-y-3">
-            {data.map((pool) => {
+            {matchingPools.map((pool) => {
               const rides = pool.rideRequests ?? [];
-              const firstRide = rides[0];
+              const firstRide = rides.find((r) => r.status !== "CANCELLED") ?? rides[0];
+              const activeRides = rides.filter((r) => r.status !== "CANCELLED");
               return (
                 <div
                   key={pool.id}
@@ -65,7 +75,7 @@ export default function MatchingPoolsPage() {
                         <div className="flex items-center gap-1">
                           <Users className="w-3.5 h-3.5" />
                           <span>
-                            {rides.length} ride{rides.length !== 1 ? "s" : ""}
+                            {activeRides.length} ride{activeRides.length !== 1 ? "s" : ""}
                           </span>
                         </div>
                         <span>·</span>

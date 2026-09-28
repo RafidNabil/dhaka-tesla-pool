@@ -14,6 +14,8 @@ function OfferCard({ offer, onAccept, onReject, isAccepting, isRejecting }) {
 
   const firstRide = rides[0];
   const isPending = offer.status === "PENDING";
+  const activeRides = rides.filter((r) => r.status !== "CANCELLED");
+  const isCancelled = rides.length > 0 && activeRides.length === 0;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
@@ -61,12 +63,12 @@ function OfferCard({ offer, onAccept, onReject, isAccepting, isRejecting }) {
       )}
 
       {/* Action buttons */}
-      {isPending && (
+      {isPending && !isCancelled && (
         <div className="flex gap-3">
           <button
             onClick={onAccept}
             disabled={isAccepting || isRejecting}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold rounded-xl transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             <CheckCircle className="w-4 h-4" />
             {isAccepting ? "Accepting…" : "Accept"}
@@ -74,10 +76,23 @@ function OfferCard({ offer, onAccept, onReject, isAccepting, isRejecting }) {
           <button
             onClick={onReject}
             disabled={isAccepting || isRejecting}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 border-2 border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 text-sm font-semibold rounded-xl transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 border-2 border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 text-sm font-semibold rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             <XCircle className="w-4 h-4" />
             {isRejecting ? "Rejecting…" : "Reject"}
+          </button>
+        </div>
+      )}
+
+      {isPending && isCancelled && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+          <p className="text-red-700 text-xs font-semibold">Cancelled by Passenger</p>
+          <button
+            onClick={onReject}
+            disabled={isRejecting}
+            className="mt-2 text-xs text-red-600 underline font-medium hover:text-red-800"
+          >
+            Dismiss offer
           </button>
         </div>
       )}
