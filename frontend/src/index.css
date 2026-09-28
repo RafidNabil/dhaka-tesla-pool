@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --color-tesla-blue: #3b82f6;
+  --color-tesla-green: #10b981;
+  --color-tesla-red: #ef4444;
+  --color-tesla-yellow: #f59e0b;
+  --color-tesla-gray: #6b7280;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f9fafb;
+  color: #111827;
+}
