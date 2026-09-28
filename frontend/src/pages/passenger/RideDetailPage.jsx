@@ -9,29 +9,54 @@ import ErrorState from "../../components/ErrorState";
 import StatusBadge from "../../components/StatusBadge";
 import { ArrowRight, User, Car, Wallet, X } from "lucide-react";
 
-const RIDE_STEPS = ["REQUESTED", "MATCHED", "STARTED", "COMPLETED"];
+function RideStepper({ status, driverArrivedAt }) {
+  // Steps:
+  // 0: Ride Requested
+  // 1: Driver Matched
+  // 2: Driver on the Way (or Driver Arrived once marked)
+  // 3: Trip in Progress
+  // 4: Completed
 
-function RideStepper({ status }) {
-  const current = RIDE_STEPS.indexOf(status);
-  const labels = ["Ride Requested", "Driver Matched", "Trip in Progress", "Completed"];
+  let currentStep = 0;
+  if (status === "REQUESTED") {
+    currentStep = 0;
+  } else if (status === "MATCHED") {
+    currentStep = driverArrivedAt ? 2.5 : 2;
+  } else if (status === "STARTED") {
+    currentStep = 3;
+  } else if (status === "COMPLETED") {
+    currentStep = 4;
+  }
+
+  const steps = [
+    { key: "REQUESTED", label: "Ride Requested" },
+    { key: "MATCHED", label: "Driver Matched" },
+    {
+      key: "DRIVER_ON_THE_WAY",
+      label: driverArrivedAt ? "Driver Arrived" : "Driver on the Way",
+    },
+    { key: "STARTED", label: "Trip in Progress" },
+    { key: "COMPLETED", label: "Completed" },
+  ];
 
   return (
     <div className="flex items-start gap-0">
-      {RIDE_STEPS.map((step, i) => {
-        const done = i < current;
-        const active = i === current;
-        const last = i === RIDE_STEPS.length - 1;
+      {steps.map((step, i) => {
+        const done = currentStep > i;
+        const active = Math.floor(currentStep) === i;
+        const last = i === steps.length - 1;
+
         return (
-          <div key={step} className="flex-1 flex flex-col items-center">
+          <div key={step.key} className="flex-1 flex flex-col items-center">
             <div className="flex items-center w-full">
               {/* Circle */}
               <div
-                className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 z-10 ${
+                className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 z-10 transition-colors ${
                   done
-                    ? "bg-green-500 border-green-500"
+                    ? "bg-green-500 border-green-500 text-white"
                     : active
-                    ? "bg-blue-600 border-blue-600"
-                    : "bg-white border-gray-300"
+                    ? "bg-blue-600 border-blue-600 text-white"
+                    : "bg-white border-gray-300 text-gray-400"
                 }`}
               >
                 {done ? (
@@ -66,11 +91,11 @@ function RideStepper({ status }) {
                 active
                   ? "text-blue-600 font-semibold"
                   : done
-                  ? "text-green-600"
+                  ? "text-green-600 font-medium"
                   : "text-gray-400"
               }`}
             >
-              {labels[i]}
+              {step.label}
             </p>
           </div>
         );
@@ -98,6 +123,7 @@ export default function RideDetailPage() {
     },
   });
 
+  // Socket.IO — live updates
   useEffect(() => {
     if (!ride?.poolId) return;
     connectSocket();
@@ -111,11 +137,13 @@ export default function RideDetailPage() {
 
     socket.on("ride:statusChanged", handler);
     socket.on("pool:statusChanged", handler);
+    socket.on("pool:driverArrived", handler);
 
     return () => {
       leavePoolRoom(ride.poolId);
       socket.off("ride:statusChanged", handler);
       socket.off("pool:statusChanged", handler);
+      socket.off("pool:driverArrived", handler);
     };
   }, [ride?.poolId, id, queryClient]);
 
@@ -165,7 +193,13 @@ export default function RideDetailPage() {
             <h1 className="text-2xl font-bold text-gray-900">Ride Details</h1>
             <p className="text-gray-400 text-xs mt-0.5 font-mono">{ride.id.slice(0, 8)}…</p>
           </div>
-          <StatusBadge status={ride.status} />
+          {ride.status === "MATCHED" && !ride.pool?.driverArrivedAt ? (
+            <StatusBadge status="DRIVER_ON_THE_WAY" label="Driver on the way" />
+          ) : ride.status === "MATCHED" && ride.pool?.driverArrivedAt ? (
+            <StatusBadge status="DRIVER_ARRIVED" label="Driver arrived" />
+          ) : (
+            <StatusBadge status={ride.status} />
+          )}
         </div>
 
         {/* Route card */}
@@ -233,11 +267,42 @@ export default function RideDetailPage() {
           </div>
         </div>
 
+        {/* Driver on the way / Arrived alert banner */}
+        {ride.status === "MATCHED" && !ride.pool?.driverArrivedAt && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-indigo-700 shadow-sm">
+            <span className="relative flex h-3 w-3 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+            </span>
+            <div>
+              <p className="font-semibold">Driver is on the way</p>
+              <p className="text-xs text-indigo-600 mt-0.5">
+                The driver has accepted the ride and is traveling to your pickup location.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {ride.status === "MATCHED" && ride.pool?.driverArrivedAt && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 text-sm text-emerald-700 shadow-sm">
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shrink-0"></span>
+            <div>
+              <p className="font-semibold">Driver has arrived!</p>
+              <p className="text-xs text-emerald-600 mt-0.5">
+                Your driver is waiting at the pickup location. The trip will begin shortly.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Status stepper — only for non-cancelled */}
         {!isCancelled && (
           <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Trip Progress</h3>
-            <RideStepper status={ride.status} />
+            <RideStepper
+              status={ride.status}
+              driverArrivedAt={ride.pool?.driverArrivedAt}
+            />
           </div>
         )}
 
