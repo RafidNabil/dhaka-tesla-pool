@@ -32,6 +32,24 @@ export const getRideById = async (req, res, next) => {
   }
 };
 
+export const updatePoolingPreference = async (req, res, next) => {
+  try {
+    const ride = await rideService.updatePoolingPreference({
+      rideId: req.params.id,
+      passengerId: req.user.id,
+      poolingPreference: req.body.poolingPreference,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Pooling preference updated successfully",
+      ride,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const cancelRide = async (req, res, next) => {
   try {
     const ride = await rideService.cancelRide({

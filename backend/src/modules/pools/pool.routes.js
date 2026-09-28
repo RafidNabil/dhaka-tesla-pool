@@ -3,7 +3,9 @@ import { Router } from "express";
 import {
   getPoolById,
   getMatchingPools,
+  arriveAtPool,
   startPool,
+  completePool
 } from "./pool.controller.js";
 
 import {
@@ -24,9 +26,21 @@ router.get(
 router.get("/:id", getPoolById);
 
 router.post(
+  "/:id/arrive",
+  requireRole("DRIVER"),
+  arriveAtPool
+);
+
+router.post(
   "/:id/start",
   requireRole("DRIVER"),
   startPool
+);
+
+router.post(
+  "/:id/complete",
+  requireRole("DRIVER"),
+  completePool
 );
 
 export default router;

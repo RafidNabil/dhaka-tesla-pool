@@ -15,3 +15,7 @@ export const createRideSchema = z.object({
 
   poolingPreference: z.enum(["WAIT", "IMMEDIATE"]),
 });
+
+export const updatePoolingPreferenceSchema = z.object({
+  poolingPreference: z.enum(["WAIT", "IMMEDIATE"]),
+});
