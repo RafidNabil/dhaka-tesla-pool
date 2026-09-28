@@ -213,3 +213,51 @@ export const getPassengerRideHistory = async (passengerId) => {
     },
   });
 };
+
+export const getActiveRide = async (passengerId) => {
+  return prisma.rideRequest.findFirst({
+    where: {
+      passengerId,
+      status: {
+        in: ["REQUESTED", "MATCHED", "STARTED"],
+      },
+    },
+    include: {
+      pickupLocation: true,
+      destinationLocation: true,
+      pool: {
+        include: {
+          vehicle: {
+            include: {
+              driver: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          rideRequests: {
+            where: {
+              status: {
+                not: "CANCELLED",
+              },
+            },
+            select: {
+              id: true,
+              passengerId: true,
+              seatsRequested: true,
+              poolingPreference: true,
+              status: true,
+            },
+          },
+        },
+      },
+      fare: true,
+    },
+    orderBy: {
+      requestedAt: "desc",
+    },
+  });
+};

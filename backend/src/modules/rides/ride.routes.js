@@ -4,7 +4,8 @@ import {
   getRideById,
   cancelRide,
   updatePoolingPreference,
-  getPassengerRideHistory
+  getPassengerRideHistory,
+  getActiveRide
 } from "./ride.controller.js";
 import { createRideSchema, updatePoolingPreferenceSchema } from "./ride.validation.js";
 import { validate } from "../../middlewares/validate.middleware.js";
@@ -21,6 +22,12 @@ router.get(
   "/history",
   requireRole("PASSENGER"),
   getPassengerRideHistory
+);
+
+router.get(
+  "/active",
+  requireRole("PASSENGER"),
+  getActiveRide
 );
 
 router.post(
