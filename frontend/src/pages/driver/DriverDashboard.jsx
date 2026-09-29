@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { vehiclesApi, offersApi } from "../../lib/api";
+import { vehiclesApi, poolsApi, offersApi } from "../../lib/api";
 import Layout from "../../components/Layout";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorState from "../../components/ErrorState";
@@ -77,6 +77,12 @@ export default function DriverDashboard() {
     refetchInterval: 30000,
   });
 
+  const { data: activePool } = useQuery({
+    queryKey: ["pools", "active"],
+    queryFn: () => poolsApi.getActive().then((r) => r.data.pool),
+    refetchInterval: 30000,
+  });
+
   const statusMutation = useMutation({
     mutationFn: (online) => vehiclesApi.updateStatus(online),
     onSuccess: () => {
@@ -132,6 +138,30 @@ export default function DriverDashboard() {
                   Capacity: {vehicle.capacity} seats
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activePool && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                  Current Pool
+                </p>
+                <p className="text-sm font-semibold text-gray-800 mt-1">
+                  {activePool.rideRequests?.length ?? 0} ride{activePool.rideRequests?.length === 1 ? "" : "s"}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  This pool is still assigned to you after reconnecting.
+                </p>
+              </div>
+              <Link
+                to={`/driver/pools/${activePool.id}`}
+                className="shrink-0 text-sm font-semibold text-blue-700 hover:text-blue-900"
+              >
+                Open pool
+              </Link>
             </div>
           </div>
         )}

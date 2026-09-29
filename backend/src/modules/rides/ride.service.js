@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.js";
 import { AppError } from "../../utils/errors.js";
+import { emitToPool } from "../../services/websocket.service.js";
 
 export const createRide = async ({
   passengerId,
@@ -127,7 +128,7 @@ export const updatePoolingPreference = async ({
     );
   }
 
-  return prisma.rideRequest.update({
+  const updatedRide = await prisma.rideRequest.update({
     where: {
       id: rideId,
     },
@@ -140,6 +141,15 @@ export const updatePoolingPreference = async ({
       pool: true,
     },
   });
+
+  if (updatedRide.poolId) {
+    emitToPool(updatedRide.poolId, "ride:preferenceUpdated", {
+      rideId,
+      poolingPreference,
+    });
+  }
+
+  return updatedRide;
 };
 
 export const cancelRide = async ({
@@ -173,19 +183,69 @@ export const cancelRide = async ({
     );
   }
 
-  const cancelledRide = await prisma.rideRequest.update({
-    where: {
-      id: rideId,
-    },
-    data: {
-      status: "CANCELLED",
-    },
-    include: {
-      pickupLocation: true,
-      destinationLocation: true,
-      pool: true,
-    },
+  let poolCancelled = false;
+
+  const cancelledRide = await prisma.$transaction(async (tx) => {
+    const updatedRide = await tx.rideRequest.update({
+      where: {
+        id: rideId,
+      },
+      data: {
+        status: "CANCELLED",
+      },
+      include: {
+        pickupLocation: true,
+        destinationLocation: true,
+        pool: true,
+      },
+    });
+
+    if (ride.poolId) {
+      const remainingActiveRides = await tx.rideRequest.count({
+        where: {
+          poolId: ride.poolId,
+          id: { not: rideId },
+          status: { not: "CANCELLED" },
+        },
+      });
+
+      if (remainingActiveRides === 0) {
+        poolCancelled = true;
+        await tx.pool.update({
+          where: { id: ride.poolId },
+          data: {
+            status: "CANCELLED",
+            seatsOccupied: 0,
+          },
+        });
+      } else {
+        await tx.pool.update({
+          where: { id: ride.poolId },
+          data: {
+            seatsOccupied: {
+              decrement: ride.seatsRequested,
+            },
+          },
+        });
+      }
+    }
+
+    return updatedRide;
   });
+
+  if (ride.poolId) {
+    emitToPool(ride.poolId, "ride:statusChanged", {
+      rideId,
+      status: "CANCELLED",
+    });
+
+    if (poolCancelled) {
+      emitToPool(ride.poolId, "pool:statusChanged", {
+        poolId: ride.poolId,
+        status: "CANCELLED",
+      });
+    }
+  }
 
   return cancelledRide;
 };

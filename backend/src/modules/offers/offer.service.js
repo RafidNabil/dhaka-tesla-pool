@@ -96,6 +96,45 @@ export const acceptOffer = async ({
         );
       }
 
+      const lockedVehicles = await tx.$queryRaw`
+        SELECT id, online
+        FROM vehicles
+        WHERE driver_id = ${driverId}::uuid
+        FOR UPDATE
+      `;
+
+      const vehicle = lockedVehicles[0];
+
+      if (!vehicle) {
+        throw new AppError(
+          "Driver does not have a vehicle",
+          400
+        );
+      }
+
+      if (!vehicle.online) {
+        throw new AppError(
+          "Driver is currently offline",
+          400
+        );
+      }
+
+      const activePool = await tx.pool.findFirst({
+        where: {
+          vehicleId: vehicle.id,
+          status: {
+            in: ["MATCHING", "CONFIRMED", "ACTIVE"],
+          },
+        },
+      });
+
+      if (activePool) {
+        throw new AppError(
+          "You already have an active ride",
+          400
+        );
+      }
+
       const lockedPools = await tx.$queryRaw`
         SELECT id, vehicle_id, status
         FROM pools
@@ -130,30 +169,6 @@ export const acceptOffer = async ({
         );
       }
 
-      const vehicle = await tx.vehicle.findUnique({
-        where: {
-          driverId,
-        },
-        select: {
-          id: true,
-          online: true,
-        },
-      });
-
-      if (!vehicle) {
-        throw new AppError(
-          "Driver does not have a vehicle",
-          400
-        );
-      }
-
-      if (!vehicle.online) {
-        throw new AppError(
-          "Driver is currently offline",
-          400
-        );
-      }
-
       const acceptedOffer = await tx.poolOffer.updateMany({
         where: {
           id: offerId,
@@ -184,6 +199,20 @@ export const acceptOffer = async ({
       await tx.poolOffer.updateMany({
         where: {
           poolId: offer.poolId,
+          status: "PENDING",
+          id: {
+            not: offerId,
+          },
+        },
+        data: {
+          status: "REJECTED",
+          respondedAt: new Date(),
+        },
+      });
+
+      await tx.poolOffer.updateMany({
+        where: {
+          driverId,
           status: "PENDING",
           id: {
             not: offerId,

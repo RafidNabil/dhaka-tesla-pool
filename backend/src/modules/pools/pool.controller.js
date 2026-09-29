@@ -26,6 +26,21 @@ export const getMatchingPools = async (req, res, next) => {
   }
 };
 
+export const getActiveDriverPool = async (req, res, next) => {
+  try {
+    const pool = await poolService.getActiveDriverPool(
+      req.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      pool,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const arriveAtPool = async (req, res, next) => {
   try {
     const pool = await poolService.arriveAtPool({

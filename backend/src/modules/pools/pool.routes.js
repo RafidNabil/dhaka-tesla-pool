@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   getPoolById,
   getMatchingPools,
+  getActiveDriverPool,
   arriveAtPool,
   startPool,
   completePool,
@@ -28,6 +29,12 @@ router.get(
   "/matching",
   requireRole("DRIVER"),
   getMatchingPools
+);
+
+router.get(
+  "/active",
+  requireRole("DRIVER"),
+  getActiveDriverPool
 );
 
 router.get("/:id", getPoolById);

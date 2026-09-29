@@ -16,8 +16,30 @@ function ActiveRideCard({ ride }) {
     <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">Your Active Ride</h2>
-        <StatusBadge status={ride.status} />
+        {ride.status === "MATCHED" && !ride.pool?.driverArrivedAt ? (
+          <StatusBadge status="DRIVER_ON_THE_WAY" label="Driver on the way" />
+        ) : ride.status === "MATCHED" && ride.pool?.driverArrivedAt ? (
+          <StatusBadge status="DRIVER_ARRIVED" label="Driver arrived" />
+        ) : (
+          <StatusBadge status={ride.status} />
+        )}
       </div>
+
+      {ride.status === "MATCHED" && !ride.pool?.driverArrivedAt && (
+        <div className="mb-4 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 text-xs text-indigo-700 flex items-center gap-2">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+          </span>
+          <span className="font-medium">Driver is on the way to pick you up</span>
+        </div>
+      )}
+      {ride.status === "MATCHED" && ride.pool?.driverArrivedAt && (
+        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs text-emerald-700 flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0"></span>
+          <span className="font-medium">Driver has arrived at the pickup location</span>
+        </div>
+      )}
 
       {/* Route */}
       <div className="flex items-center gap-2 text-sm font-medium text-gray-800 mb-4">

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { locationsApi, faresApi, ridesApi } from "../../lib/api";
+import { locationsApi, ridesApi } from "../../lib/api";
 import Layout from "../../components/Layout";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import ErrorState from "../../components/ErrorState";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 const POOLING_OPTIONS = [
   {
@@ -30,9 +30,9 @@ export default function RequestRidePage() {
     poolingPreference: "WAIT",
   });
 
-  const [estimate, setEstimate] = useState(null);
-  const [estimateError, setEstimateError] = useState("");
+  const [requestError, setRequestError] = useState("");
 
+  // Load all locations
   const {
     data: locations,
     isLoading: locLoading,
@@ -43,46 +43,26 @@ export default function RequestRidePage() {
     queryFn: () => locationsApi.getAll().then((r) => r.data.locations),
   });
 
-  const estimateMutation = useMutation({
-    mutationFn: (data) => faresApi.estimate(data),
-    onSuccess: (res) => {
-      setEstimate(res.data);
-      setEstimateError("");
-    },
-    onError: (err) => {
-      setEstimateError(
-        err?.response?.data?.message || "Could not estimate fare."
-      );
-    },
-  });
-
+  // Request ride mutation
   const rideMutation = useMutation({
     mutationFn: (data) => ridesApi.create(data),
     onSuccess: (res) => {
       navigate(`/passenger/rides/${res.data.ride.id}`);
     },
     onError: (err) => {
-      setEstimateError(
+      setRequestError(
         err?.response?.data?.message || "Could not request ride."
       );
     },
   });
 
-  const canEstimate =
-    form.pickupLocationId &&
-    form.destinationLocationId &&
+  const canRequest =
+    Boolean(form.pickupLocationId) &&
+    Boolean(form.destinationLocationId) &&
     form.pickupLocationId !== form.destinationLocationId;
 
-  const handleEstimate = () => {
-    if (!canEstimate) return;
-    estimateMutation.mutate({
-      pickupLocationId: form.pickupLocationId,
-      destinationLocationId: form.destinationLocationId,
-      seatsRequested: form.seatsRequested,
-    });
-  };
-
   const handleRequest = () => {
+    setRequestError("");
     rideMutation.mutate(form);
   };
 
@@ -119,7 +99,7 @@ export default function RequestRidePage() {
               value={form.pickupLocationId}
               onChange={(e) => {
                 setForm({ ...form, pickupLocationId: e.target.value });
-                setEstimate(null);
+                setRequestError("");
               }}
               className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
@@ -149,7 +129,7 @@ export default function RequestRidePage() {
               value={form.destinationLocationId}
               onChange={(e) => {
                 setForm({ ...form, destinationLocationId: e.target.value });
-                setEstimate(null);
+                setRequestError("");
               }}
               className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
@@ -174,7 +154,7 @@ export default function RequestRidePage() {
                   type="button"
                   onClick={() => {
                     setForm({ ...form, seatsRequested: n });
-                    setEstimate(null);
+                    setRequestError("");
                   }}
                   className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
                     form.seatsRequested === n
@@ -198,9 +178,10 @@ export default function RequestRidePage() {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() =>
-                    setForm({ ...form, poolingPreference: opt.value })
-                  }
+                  onClick={() => {
+                    setForm({ ...form, poolingPreference: opt.value });
+                    setRequestError("");
+                  }}
                   className={`p-3 rounded-xl border text-left transition-colors ${
                     form.poolingPreference === opt.value
                       ? "bg-blue-50 border-blue-500 text-blue-700"
@@ -216,39 +197,16 @@ export default function RequestRidePage() {
             </div>
           </div>
 
-          {/* Estimate fare */}
-          <button
-            type="button"
-            onClick={handleEstimate}
-            disabled={!canEstimate || estimateMutation.isPending}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-blue-300 rounded-xl text-blue-600 font-medium text-sm hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Zap className="w-4 h-4" />
-            {estimateMutation.isPending ? "Estimating…" : "Estimate Fare"}
-          </button>
-
-          {/* Estimate result */}
-          {estimate && (
-            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
-              <p className="text-xs text-green-600 uppercase tracking-wide font-medium mb-1">
-                Estimated Fare
-              </p>
-              <p className="text-2xl font-bold text-green-700">
-                ৳{estimate.estimatedFare ?? estimate.fare ?? estimate.total ?? "—"}
-              </p>
-            </div>
-          )}
-
-          {estimateError && (
-            <p className="text-red-600 text-sm text-center">{estimateError}</p>
+          {requestError && (
+            <p className="text-red-600 text-sm text-center">{requestError}</p>
           )}
 
           {/* Request button */}
           <button
             type="button"
             onClick={handleRequest}
-            disabled={!canEstimate || rideMutation.isPending}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+            disabled={!canRequest || rideMutation.isPending}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-xl transition-colors text-sm cursor-pointer disabled:cursor-not-allowed"
           >
             {rideMutation.isPending ? "Requesting…" : "Request Ride"}
           </button>
