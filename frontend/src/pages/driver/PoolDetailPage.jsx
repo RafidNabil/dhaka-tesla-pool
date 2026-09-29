@@ -106,6 +106,7 @@ export default function PoolDetailPage() {
   const startMutation = useMutation({
     mutationFn: () => poolsApi.start(id),
     onSuccess: invalidate,
+    onError: () => refetch(),
   });
   const completeMutation = useMutation({
     mutationFn: () => poolsApi.complete(id),
@@ -313,7 +314,7 @@ export default function PoolDetailPage() {
               )}
 
             {/* Start Trip — only appears when driver has arrived AND pool is ready */}
-            {hasArrived && isPoolReady && (pool.status === "CONFIRMED" || pool.status === "MATCHING") && (
+            {hasArrived && isPoolReady && pool.status === "CONFIRMED" && (
               <ActionButton
                 label={startMutation.isPending ? "Starting trip…" : "Start Trip"}
                 icon={Play}
@@ -321,6 +322,13 @@ export default function PoolDetailPage() {
                 disabled={startMutation.isPending}
                 variant="green"
               />
+            )}
+
+            {startMutation.isError && (
+              <p className="text-sm text-red-600" role="alert">
+                {startMutation.error?.response?.data?.message ??
+                  "Could not start the trip. The pool status was refreshed."}
+              </p>
             )}
 
             {/* Complete */}
