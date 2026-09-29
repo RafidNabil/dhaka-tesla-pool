@@ -8,7 +8,16 @@ const findAvailableDrivers = async (tx) => {
     where: {
       role: "DRIVER",
       vehicle: {
-        online: true,
+        is: {
+          online: true,
+          pools: {
+            none: {
+              status: {
+                in: ["MATCHING", "CONFIRMED", "ACTIVE"],
+              },
+            },
+          },
+        },
       },
     },
     include: {
@@ -99,20 +108,14 @@ const createPoolOffers = async ({
 }) => {
   const drivers = await findAvailableDrivers(tx);
 
-  for (const driver of drivers) {
-    await tx.poolOffer.upsert({
-      where: {
-        poolId_driverId: {
-          poolId,
-          driverId: driver.id,
-        },
-      },
-      update: {},
-      create: {
+  if (drivers.length > 0) {
+    await tx.poolOffer.createMany({
+      data: drivers.map((driver) => ({
         poolId,
         driverId: driver.id,
         status: "PENDING",
-      },
+      })),
+      skipDuplicates: true,
     });
   }
 
@@ -220,7 +223,7 @@ const confirmReadyPools = async () => {
 };
 
 export const processRideRequest = async (rideRequestId) => {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const rideRequest = await tx.rideRequest.findUnique({
       where: {
         id: rideRequestId,
@@ -263,19 +266,32 @@ export const processRideRequest = async (rideRequestId) => {
       });
     }
 
-    const offerCount = pool.vehicleId
-      ? 0
-      : await createPoolOffers({
-          tx,
-          poolId: pool.id,
-        });
-
     return {
       rideRequestId: rideRequest.id,
       poolId: pool.id,
-      offerCount,
+      driverAssigned: Boolean(pool.vehicleId),
     };
+  }, {
+    maxWait: 10000,
+    timeout: 15000,
   });
+
+  if (!result) {
+    return null;
+  }
+
+  const offerCount = result.driverAssigned
+    ? 0
+    : await createPoolOffers({
+        tx: prisma,
+        poolId: result.poolId,
+      });
+
+  return {
+    rideRequestId: result.rideRequestId,
+    poolId: result.poolId,
+    offerCount,
+  };
 };
 
 export const processRequestedRides = async () => {
@@ -306,38 +322,36 @@ export const processRequestedRides = async () => {
 };
 
 export const processMatchingPools = async () => {
-  return prisma.$transaction(async (tx) => {
-    const pools = await tx.pool.findMany({
-      where: {
-        status: "MATCHING",
-      },
-      select: {
-        id: true,
-        vehicleId: true,
-      },
-    });
+  const pools = await prisma.pool.findMany({
+    where: {
+      status: "MATCHING",
+    },
+    select: {
+      id: true,
+      vehicleId: true,
+    },
+  });
 
-    const results = [];
+  const results = [];
 
-    for (const pool of pools) {
-      if (pool.vehicleId) {
-        continue;
-      }
-
-      const offerCount = await createPoolOffers({
-        tx,
-        poolId: pool.id,
-      });
-
-      results.push({
-        poolId: pool.id,
-        vehicleAssigned: false,
-        offerCount,
-      });
+  for (const pool of pools) {
+    if (pool.vehicleId) {
+      continue;
     }
 
-    return results;
-  });
+    const offerCount = await createPoolOffers({
+      tx: prisma,
+      poolId: pool.id,
+    });
+
+    results.push({
+      poolId: pool.id,
+      vehicleAssigned: false,
+      offerCount,
+    });
+  }
+
+  return results;
 };
 
 export const processPoolReadiness = async () => {

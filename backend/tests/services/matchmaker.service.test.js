@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
     $transaction: vi.fn(),
+    user: {
+      findMany: vi.fn(),
+    },
+    poolOffer: {
+      createMany: vi.fn(),
+    },
   },
 }));
 
@@ -23,6 +29,52 @@ import { processRideRequest } from "../../src/services/matchmaker/matchmaker.ser
 describe("processRideRequest", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("only creates offers for drivers without an active pool", async () => {
+    const rideRequest = {
+      id: "ride-1",
+      status: "REQUESTED",
+      seatsRequested: 1,
+      pickupLocation: {},
+      destinationLocation: {},
+    };
+    const tx = {
+      rideRequest: {
+        findUnique: vi.fn().mockResolvedValue(rideRequest),
+      },
+      pool: {
+        create: vi.fn().mockResolvedValue({
+          id: "pool-1",
+          vehicleId: null,
+        }),
+      },
+    };
+
+    findCompatiblePool.mockResolvedValue(null);
+    prismaMock.user.findMany.mockResolvedValue([]);
+    prismaMock.$transaction.mockImplementation((callback) => callback(tx));
+
+    await processRideRequest(rideRequest.id);
+
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith({
+      where: {
+        role: "DRIVER",
+        vehicle: {
+          is: {
+            online: true,
+            pools: {
+              none: {
+                status: {
+                  in: ["MATCHING", "CONFIRMED", "ACTIVE"],
+                },
+              },
+            },
+          },
+        },
+      },
+      include: { vehicle: true },
+    });
   });
 
   it("matches a ride added to a pool that already has a driver", async () => {
@@ -67,6 +119,6 @@ describe("processRideRequest", () => {
       where: { id: rideRequest.id, status: "REQUESTED" },
       data: { status: "MATCHED" },
     });
-    expect(tx.user.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.user.findMany).not.toHaveBeenCalled();
   });
 });
