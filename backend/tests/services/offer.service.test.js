@@ -3,12 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
     $transaction: vi.fn(),
+    poolOffer: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
   },
 }));
 
 vi.mock("../../src/config/prisma.js", () => ({ prisma: prismaMock }));
 
 import { acceptOffer } from "../../src/modules/offers/offer.service.js";
+import { getOfferById, rejectOffer } from "../../src/modules/offers/offer.service.js";
 
 describe("acceptOffer", () => {
   beforeEach(() => {
@@ -86,6 +91,55 @@ describe("acceptOffer", () => {
         status: "PENDING",
         id: { not: offer.id },
       },
+      data: {
+        status: "REJECTED",
+        respondedAt: expect.any(Date),
+      },
+    });
+  });
+});
+
+describe("offer read and rejection behavior", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("prevents a different driver from viewing an offer", async () => {
+    prismaMock.poolOffer.findUnique.mockResolvedValue({
+      id: "offer-1",
+      driverId: "driver-1",
+    });
+
+    await expect(
+      getOfferById({
+        offerId: "offer-1",
+        driverId: "driver-2",
+      })
+    ).rejects.toThrow("You are not authorized to view this offer");
+  });
+
+  it("rejects a pending offer and records the response time", async () => {
+    prismaMock.poolOffer.findUnique.mockResolvedValue({
+      id: "offer-1",
+      driverId: "driver-1",
+      status: "PENDING",
+    });
+
+    prismaMock.poolOffer.update.mockResolvedValue({
+      status: "REJECTED",
+    });
+
+    await expect(
+      rejectOffer({
+        offerId: "offer-1",
+        driverId: "driver-1",
+      })
+    ).resolves.toEqual({
+      status: "REJECTED",
+    });
+
+    expect(prismaMock.poolOffer.update).toHaveBeenCalledWith({
+      where: { id: "offer-1" },
       data: {
         status: "REJECTED",
         respondedAt: expect.any(Date),

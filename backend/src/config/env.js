@@ -12,7 +12,7 @@ const envSchema = z.object({
   DIRECT_URL: z.string().min(1),
 
   JWT_ACCESS_SECRET: z.string().min(10),
-  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
+  JWT_ACCESS_EXPIRES_IN: z.string().default("1h"),
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(8).max(20).default(12),
 });
 
