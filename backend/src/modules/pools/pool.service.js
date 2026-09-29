@@ -99,14 +99,14 @@ export const getActiveDriverPool = async (driverId) => {
     where: {
       vehicleId: vehicle.id,
       status: {
-        in: ["CONFIRMED", "ACTIVE"],
+        in: ["MATCHING", "CONFIRMED", "ACTIVE"],
       },
     },
     include: {
       rideRequests: {
         where: {
           status: {
-            in: ["MATCHED", "STARTED"],
+            not: "CANCELLED",
           },
         },
         include: {

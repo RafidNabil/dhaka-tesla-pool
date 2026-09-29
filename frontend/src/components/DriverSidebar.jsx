@@ -8,7 +8,7 @@ import { disconnectSocket } from "../lib/socket";
 const links = [
   { to: "/driver/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/driver/offers", icon: Bell, label: "Pool Offers" },
-  { to: "/driver/pools", icon: Car, label: "Matching Pools" },
+  { to: "/driver/pools", icon: Car, label: "My Current Pool" },
   { to: "/driver/history", icon: History, label: "History" },
 ];
 
