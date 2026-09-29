@@ -81,6 +81,47 @@ export const getMatchingPools = async () => {
   });
 };
 
+export const getActiveDriverPool = async (driverId) => {
+  const vehicle = await prisma.vehicle.findUnique({
+    where: {
+      driverId,
+    },
+  });
+
+  if (!vehicle) {
+    throw new AppError(
+      "Driver does not have a vehicle",
+      400
+    );
+  }
+
+  return prisma.pool.findFirst({
+    where: {
+      vehicleId: vehicle.id,
+      status: {
+        in: ["CONFIRMED", "ACTIVE"],
+      },
+    },
+    include: {
+      rideRequests: {
+        where: {
+          status: {
+            in: ["MATCHED", "STARTED"],
+          },
+        },
+        include: {
+          pickupLocation: true,
+          destinationLocation: true,
+          fare: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+};
+
 export const startPool = async ({
   poolId,
   driverId,

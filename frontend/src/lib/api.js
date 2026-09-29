@@ -41,6 +41,7 @@ export const ridesApi = {
 export const poolsApi = {
   getById: (id) => api.get(`/pools/${id}`),
   getMatching: () => api.get("/pools/matching"),
+  getActive: () => api.get("/pools/active"),
   arrive: (id) => api.post(`/pools/${id}/arrive`),
   start: (id) => api.post(`/pools/${id}/start`),
   complete: (id) => api.post(`/pools/${id}/complete`),
