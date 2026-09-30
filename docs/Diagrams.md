@@ -71,67 +71,7 @@ sequenceDiagram
     API-->>FE: Final fare + completed ride
 ```
 
-
-
-
-# 2. Pool Matching Lifecycle
-
-```mermaid
-flowchart TD
-    A[Passenger submits RIDE_REQUEST] --> C{Find compatible pool?} 
-
-    C -->|Yes| H{Capacity available?}
-    C -->|No| E[Create new POOL]
-
-    E --> F[POOL = MATCHING]
-    H -->|No| C
-    H -->|Yes| I[Add rider]
-
-    I --> J[Update seats_occupied]
-    J --> M{Driver available?}
-
-
-    
-    M -->|No| N[Keep pool MATCHING]
-    M -->|Yes| O[Create POOL_OFFER]
-
-    O --> P{Driver response}
-    P -->|Reject| M
-    P -->|Accept| Q[POOL = CONFIRMED]
-
-    Q --> R[Pool waits for start condition]
-    R --> S[Majority decision]
-    S --> T{More than half WAIT?}
-
-    T -->|Yes| R
-    T -->|No| U[POOL = ACTIVE]
-```
-
-
-# 3. Fare Lifecycle
-
-```mermaid
-flowchart TD
-    A[Ride request created] --> B[Calculate initial estimate]
-    B --> C[Show estimated fare]
-
-    C --> D{Pool membership changes?}
-
-    D -->|New rider joins| E[Recalculate]
-    D -->|Rider leaves/cancels| E
-    D -->|No| C
-
-    E --> F[Calculate individual fares]
-    F --> G[WebSocket pool.updated]
-    G --> C
-
-    C --> H[Ride starts]
-    H --> I[Determine final fare]
-    I --> J[Create FARE record]
-    J --> K[Show final fare]
-```
-
-# 4. State Machines
+# 2. State Machines
 
 ## RIDE_REQUEST
 ```mermaid
