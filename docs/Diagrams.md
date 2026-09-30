@@ -78,29 +78,25 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[Passenger submits ride request] --> B[Create RIDE_REQUEST]
-    B --> C{Find compatible pool?}
+    A[Passenger submits RIDE_REQUEST] --> C{Find compatible pool?} 
 
-    C -->|Yes| D[Join existing POOL]
+    C -->|Yes| H{Capacity available?}
     C -->|No| E[Create new POOL]
 
     E --> F[POOL = MATCHING]
-    D --> G[Check capacity]
-
-    G --> H{Capacity available?}
     H -->|No| C
     H -->|Yes| I[Add rider]
 
     I --> J[Update seats_occupied]
-    J --> K[Recalculate estimated fares]
-    K --> L[Find available driver]
+    J --> M{Driver available?}
 
-    L --> M{Driver available?}
+
+    
     M -->|No| N[Keep pool MATCHING]
     M -->|Yes| O[Create POOL_OFFER]
 
     O --> P{Driver response}
-    P -->|Reject| L
+    P -->|Reject| M
     P -->|Accept| Q[POOL = CONFIRMED]
 
     Q --> R[Pool waits for start condition]
