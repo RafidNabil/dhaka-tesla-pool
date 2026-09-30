@@ -5,6 +5,13 @@ import { authApi } from "../../lib/api";
 import useAuthStore from "../../store/authStore";
 import { connectSocket } from "../../lib/socket";
 
+const demoUsers = [
+  { name: "Nusrat", role: "Passenger", email: "nusrat@example.com", password: "password123" },
+  { name: "Jashim", role: "Driver", email: "jashim@test.com", password: "Password123" },
+  { name: "Rafiq", role: "Passenger", email: "rafiq@gmail.com", password: "password123" },
+  { name: "Motin", role: "Driver", email: "motin@test.com", password: "Password123" },
+];
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const setUser = useAuthStore((s) => s.setUser);
@@ -35,6 +42,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     loginMutation.mutate(form);
+  };
+
+  const selectDemoUser = (user) => {
+    setForm({ email: user.email, password: user.password });
+    setError("");
   };
 
   return (
@@ -82,6 +94,24 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Quick demo login</p>
+              <div className="grid grid-cols-2 gap-2">
+                {demoUsers.map((user) => (
+                  <button
+                    key={user.email}
+                    type="button"
+                    disabled={loginMutation.isPending}
+                    onClick={() => selectDemoUser(user)}
+                    className="text-left border border-gray-200 rounded-lg px-3 py-2 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 transition-colors"
+                  >
+                    <span className="block text-sm font-medium text-gray-800">{user.name}</span>
+                    <span className="block text-xs text-gray-500">{user.role}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button
