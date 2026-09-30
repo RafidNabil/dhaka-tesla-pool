@@ -452,7 +452,3 @@ Examples: `feat(auth): add passenger login endpoint` and `fix(pool): prevent ove
 ## AI Usage
 
 ChatGPT was used for planning and explanation. The documentation intentionally records current limitations instead of claiming that the existing Compose setup is self-contained or production-ready.
-
-**Deployment URL:** https://dhaka-tesla-pool-flax.vercel.app
-
-**Demo video:** Not recorded yet.
